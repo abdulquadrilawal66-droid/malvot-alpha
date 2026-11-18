@@ -41,6 +41,7 @@ export const useDirector = create((set, get) => ({
   webglFailed: false,
   reducedMotion: prefersReducedMotion(),
   quality: 'high', // 'high' | 'low'
+  stageNarrow: false,
   devFreeCam: false,
   devWireframe: false,
   devHidden: {},

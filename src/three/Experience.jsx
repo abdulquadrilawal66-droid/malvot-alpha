@@ -6,13 +6,12 @@ import * as THREE from 'three'
 import CameraDirector from './CameraDirector'
 import Entrance from './rooms/Entrance'
 import Corridor from './rooms/Corridor'
-import CommandDeck, { PLATFORM_Z, PLATFORM_TOP } from './rooms/CommandDeck'
+import CommandDeck from './rooms/CommandDeck'
+import { PLATFORM_Z, PLATFORM_TOP, WOLF_H, WOLF_Z, WOLF_ART } from './framing'
 import { MATS, setGlow } from './materials'
 import { live, useDirector } from '../state/director'
 import { domRefs } from '../ui/domRefs'
-import { BRAND_ASSETS } from '../brand/assets'
-
-const WOLF_FRAME = BRAND_ASSETS.officialWolfPrimary.frame
+const WOLF_FRAME = { top: WOLF_ART.top / WOLF_ART.h, bottom: (WOLF_ART.h - WOLF_ART.bottom) / WOLF_ART.h }
 
 const DevTools3D = import.meta.env.DEV ? lazy(() => import('../dev/DevTools3D')) : null
 
@@ -35,38 +34,61 @@ function GlowDriver() {
   return null
 }
 
+/** SpotLight whose target is fixed once (target objects outside the scene never update otherwise). */
+function Spot({ target, lightRef, ...props }) {
+  const local = useRef()
+  const ref = lightRef || local
+  useEffect(() => {
+    if (!ref.current) return
+    ref.current.target.position.set(...target)
+    ref.current.target.updateMatrixWorld()
+  }, [ref, target])
+  return <spotLight ref={ref} {...props} />
+}
+
+const T_FACADE = [0, 3.5, 0]
+const T_DECK = [0, 1, PLATFORM_Z]
+const T_GOLD = [0, 0.6, PLATFORM_Z + 0.8]
+
 function Lights() {
   const deck = useRef()
   const spill = useRef()
   const key = useRef()
   const gold = useRef()
+  const rim = useRef()
+  const warm = useRef()
   useFrame(() => {
     const L = live.lightScale
-    if (deck.current) deck.current.intensity = live.heroPower * (22 + live.hover * 14) * L
+    const P = live.heroPower
+    if (deck.current) deck.current.intensity = P * (14 + live.hover * 10) * L
     if (spill.current) spill.current.intensity = live.doors * 30 * L
-    if (key.current) key.current.intensity = (0.35 + live.heroPower * 1.6) * L * 60
-    if (gold.current) gold.current.intensity = live.heroPower * 14 * L
+    if (key.current) key.current.intensity = (0.3 + P * 1.4) * L * 70
+    if (gold.current) gold.current.intensity = P * 9 * L
+    if (rim.current) rim.current.intensity = P * 26 * L
+    if (warm.current) warm.current.intensity = P * 90 * L
   })
   return (
     <>
-      <ambientLight intensity={0.22} color="#7fb8c8" />
-      <hemisphereLight args={['#2a6c7a', '#05090b', 0.35]} />
+      <ambientLight intensity={0.28} color="#86c2d2" />
+      <hemisphereLight args={['#3a8fa0', '#071016', 0.45]} />
       {/* exterior wash on the facade */}
-      <spotLight position={[0, 12, 10]} angle={0.7} penumbra={0.9} intensity={160} distance={30} color="#9fdcea" target-position={[0, 3, 0]} />
+      <Spot target={T_FACADE} position={[0, 12, 10]} angle={0.75} penumbra={0.9} intensity={160} distance={32} color="#9fdcea" />
       {/* cyan light spilling through the opening doors */}
       <pointLight ref={spill} position={[0, 3, -3]} color="#00E5F2" distance={14} decay={1.6} intensity={0} />
-      {/* command deck */}
-      <pointLight ref={deck} position={[0, 1.4, PLATFORM_Z + 1.2]} color="#00E5F2" distance={12} decay={1.6} />
-      <pointLight ref={gold} position={[0, 4, PLATFORM_Z - 2.8]} color="#FFB443" distance={9} decay={1.8} />
-      <spotLight ref={key} position={[0, 10, PLATFORM_Z + 7]} angle={0.55} penumbra={0.8} distance={30} color="#cfefff" target-position={[0, 1, PLATFORM_Z]} />
+
+      {/* COMMAND DECK — cool key from above-front */}
+      <Spot lightRef={key} target={T_DECK} position={[-2, 11, PLATFORM_Z + 8]} angle={0.5} penumbra={0.85} distance={32} color="#d6f3ff" />
+      {/* warm gold accent raking across the platform from the right */}
+      <Spot lightRef={warm} target={T_GOLD} position={[8, 5, PLATFORM_Z + 3]} angle={0.42} penumbra={1} distance={20} color="#ffb24a" />
+      {/* cyan rim from behind the insignia: separates layers */}
+      <pointLight ref={rim} position={[0, 4.5, PLATFORM_Z - 5]} color="#19d9e8" distance={13} decay={1.7} />
+      {/* soft cyan uplight from the platform ring */}
+      <pointLight ref={deck} position={[0, 1.3, PLATFORM_Z + 1.4]} color="#00E5F2" distance={8} decay={1.8} />
+      <pointLight ref={gold} position={[0, 3.6, PLATFORM_Z - 2.6]} color="#FFB443" distance={7} decay={1.8} />
+      {/* background wash so the far wall reads as architecture */}
       {[-1, 1].map((s) => (
-        <pointLight key={s} position={[s * 6, 3, PLATFORM_Z + 2]} color="#00C8D8" intensity={8} distance={9} decay={1.8} />
+        <pointLight key={s} position={[s * 7, 7.5, -53]} color="#2aa9bb" intensity={16} distance={14} decay={1.6} />
       ))}
-      {/* back-wall wash so the chamber reads as a room, not a void */}
-      {[-1, 1].map((s) => (
-        <pointLight key={`b${s}`} position={[s * 6, 7, -52]} color="#2bb8c9" intensity={18} distance={14} decay={1.6} />
-      ))}
-      <pointLight position={[0, 9, -40]} color="#9fd8e6" intensity={10} distance={18} decay={1.5} />
     </>
   )
 }
@@ -79,8 +101,8 @@ function WolfSync() {
   useFrame(() => {
     const el = domRefs.wolf
     if (!el) return
-    foot.set(0, PLATFORM_TOP - 0.02, PLATFORM_Z + 0.15).project(camera)
-    head.set(0, PLATFORM_TOP + 4.85, PLATFORM_Z + 0.15).project(camera)
+    foot.set(0, PLATFORM_TOP - 0.01, WOLF_Z).project(camera)
+    head.set(0, PLATFORM_TOP + WOLF_H, WOLF_Z).project(camera)
     const fx = (foot.x * 0.5 + 0.5) * size.width
     const fy = (-foot.y * 0.5 + 0.5) * size.height
     const hy = (-head.y * 0.5 + 0.5) * size.height
@@ -128,9 +150,9 @@ export default function Experience({ active = true }) {
       camera={{ fov: 44, near: 0.1, far: 120, position: [0, 2.4, 12.5] }}
       onCreated={({ gl, scene }) => {
         gl.toneMapping = THREE.ACESFilmicToneMapping
-        gl.toneMappingExposure = 1.05
+        gl.toneMappingExposure = 1.12
         scene.background = new THREE.Color('#03131B')
-        scene.fog = new THREE.Fog('#03131B', 18, 46)
+        scene.fog = new THREE.Fog('#05202a', 20, 52)
       }}
       aria-hidden="true"
     >
@@ -154,8 +176,8 @@ export default function Experience({ active = true }) {
         <Ready />
         {quality === 'high' && (
           <EffectComposer multisampling={0} disableNormalPass>
-            <Bloom mipmapBlur intensity={0.5} luminanceThreshold={1.0} luminanceSmoothing={0.25} radius={0.62} />
-            <Vignette offset={0.32} darkness={0.62} />
+            <Bloom mipmapBlur intensity={0.32} luminanceThreshold={1.05} luminanceSmoothing={0.3} radius={0.55} />
+            <Vignette offset={0.35} darkness={0.5} />
           </EffectComposer>
         )}
         {DevTools3D && (

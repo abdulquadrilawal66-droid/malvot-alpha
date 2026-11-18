@@ -31,6 +31,11 @@ export const MATS = {
   insigniaCyan: glow('#00E5F2'), // insignia edges
   goldGlow: glow('#FFB443'), // gold light strips
   corridorCyan: glow('#00E5F2'),
+  // static, sub-bloom accents for architecture (never blooms across text)
+  wallGlow: new THREE.MeshBasicMaterial({ color: '#1aa7b4', toneMapped: false }),
+  wallGold: new THREE.MeshBasicMaterial({ color: '#b98a3a', toneMapped: false }),
+  steelLight: new THREE.MeshStandardMaterial({ color: '#2b3f47', metalness: 0.85, roughness: 0.42 }),
+  recess: new THREE.MeshStandardMaterial({ color: '#081820', metalness: 0.5, roughness: 0.7 }),
   holo: new THREE.MeshBasicMaterial({ color: '#00E5F2', transparent: true, opacity: 0.12, depthWrite: false, side: THREE.DoubleSide, toneMapped: false }),
 }
 

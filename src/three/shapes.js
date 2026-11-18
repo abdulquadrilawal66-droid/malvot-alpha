@@ -6,13 +6,13 @@ import * as THREE from 'three'
  * Units: metres, origin at bottom-centre.
  */
 const RIGHT_HALF = [
-  [0, 4.15],
-  [1.75, 5.55],
-  [2.15, 3.85],
-  [3.05, 3.05],
-  [2.2, 2.35],
-  [1.75, 0.95],
-  [0, 0.35],
+  [0, 4.75],
+  [1.7, 5.6],
+  [2.05, 4.0],
+  [2.95, 3.15],
+  [2.15, 2.45],
+  [1.7, 1.0],
+  [0, 0.4],
 ]
 
 function mirrored(pts) {
@@ -103,5 +103,22 @@ export function floorPanelTexture() {
   tex.wrapS = tex.wrapT = THREE.RepeatWrapping
   tex.colorSpace = THREE.SRGBColorSpace
   tex.anisotropy = 8
+  return tex
+}
+
+/** Soft radial glow (for under-platform illumination). */
+export function radialGlowTexture(inner = 'rgba(0,229,242,0.55)') {
+  const s = 256
+  const c = document.createElement('canvas')
+  c.width = c.height = s
+  const g = c.getContext('2d')
+  const grd = g.createRadialGradient(s / 2, s / 2, s * 0.12, s / 2, s / 2, s / 2)
+  grd.addColorStop(0, inner)
+  grd.addColorStop(0.5, 'rgba(0,229,242,0.14)')
+  grd.addColorStop(1, 'rgba(0,229,242,0)')
+  g.fillStyle = grd
+  g.fillRect(0, 0, s, s)
+  const tex = new THREE.CanvasTexture(c)
+  tex.colorSpace = THREE.SRGBColorSpace
   return tex
 }

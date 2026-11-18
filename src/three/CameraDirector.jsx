@@ -2,7 +2,7 @@ import { useRef, useEffect } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { live, useDirector } from '../state/director'
-import { PLATFORM_Z } from './rooms/CommandDeck'
+import { fitHero } from './framing'
 
 /**
  * ONE camera director for the whole headquarters.
@@ -20,13 +20,9 @@ const easeOut = (x) => 1 - Math.pow(1 - x, 3)
 
 const V = (x, y, z) => new THREE.Vector3(x, y, z)
 
-/** Hero framing adapts to the canvas aspect so the platform + insignia always fit. */
+/** Hero framing is fitted to the free screen area measured from the DOM (see framing.js). */
 export function heroPose(aspect, fovDeg) {
-  const look = V(0, aspect < 1 ? 3.15 : 2.42, PLATFORM_Z)
-  const dir = V(0, 0.062, 1).normalize()
-  const requiredH = Math.max(7.1, (aspect < 1 ? 7.6 : 9.6) / aspect)
-  const d = requiredH / (2 * Math.tan(THREE.MathUtils.degToRad(fovDeg / 2)))
-  return { pos: look.clone().addScaledVector(dir, d), look }
+  return fitHero(fovDeg)
 }
 
 /** Registered camera states (planned rooms stay null until built). */
@@ -35,7 +31,7 @@ export function cameraStates(aspect, fov) {
   return {
     INTRO_EXTERIOR: { pos: V(0, 3.0, 19), look: V(0, 4.3, 0) },
     INTRO_CORRIDOR: { pos: V(0, 2.1, -14), look: V(0, 2.1, -30) },
-    HERO_REVEAL: { pos: hero.pos.clone().add(V(0, 0.25, 1.6)), look: hero.look.clone() },
+    HERO_REVEAL: { pos: hero.pos.clone().add(V(0, 0.2, 1.2)), look: hero.look.clone() },
     HERO_IDLE: hero,
     ABOUT_ARCHIVE: null,
     TOKEN_VAULT: null,
@@ -64,10 +60,11 @@ export default function CameraDirector() {
   const aspect = size.width / Math.max(1, size.height)
 
   // build the intro travel path once per aspect
-  if (!travel.current || travel.current.aspect !== aspect) {
-    const hero = heroPose(aspect, camera.fov)
+  const heroNow = heroPose(aspect, camera.fov)
+  if (!travel.current || travel.current.hero !== heroNow) {
+    const hero = heroNow
     travel.current = {
-      aspect,
+      hero,
       pos: new THREE.CatmullRomCurve3([V(0, 2.3, 9.2), V(0, 2.15, 3), V(0, 2.0, -6), V(0, 2.15, -18), V(0, 2.7, -28), hero.pos.clone()], false, 'centripetal'),
       look: new THREE.CatmullRomCurve3([V(0, 3.4, 0), V(0, 2.4, -8), V(0, 2.1, -20), V(0, 2.3, -34), V(0, 2.6, -44), hero.look.clone()], false, 'centripetal'),
     }
@@ -147,8 +144,8 @@ export default function CameraDirector() {
 
     // restrained parallax in idle only
     const idle = phase === 'hero' && !reducedMotion
-    const tx = idle ? live.pointer.x * 0.28 : 0
-    const ty = idle ? -live.pointer.y * 0.1 : 0
+    const tx = idle ? live.pointer.x * 0.16 : 0
+    const ty = idle ? -live.pointer.y * 0.06 : 0
     parallax.current.x += (tx - parallax.current.x) * (1 - Math.exp(-dt * 3))
     parallax.current.y += (ty - parallax.current.y) * (1 - Math.exp(-dt * 3))
 
